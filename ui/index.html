@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TK-63 Pro Control</title>
+<style>
+  :root {
+    --bg: #0e0f13; --panel: #171920; --panel2: #1e2129; --line: #2a2e38;
+    --text: #e8eaf0; --muted: #8a90a0; --accent: #00c8ff; --ok: #3ddc84; --warn: #ffb020; --bad: #ff5468;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.4 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  body { padding: 20px 24px 28px; max-width: 1180px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: .2px; }
+  h1 small { color: var(--muted); font-weight: 400; font-size: 13px; margin-left: 6px; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+  .spacer { flex: 1; }
+  button { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 8px 14px; cursor: pointer; transition: border-color .15s, background .15s; }
+  button:hover { border-color: #3a4050; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.ghost { background: transparent; }
+
+  .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted);
+    margin: 0 0 12px; font-weight: 600; }
+  .stack > * + * { margin-top: 18px; }
+
+  /* keyboard preview */
+  .kbwrap { background: #08090c; border-radius: 12px; padding: 14px; border: 1px solid #22252d; }
+  .kb { display: grid; gap: 5px; }
+  .row { display: grid; gap: 5px; }
+  .key { height: 34px; border-radius: 6px; background: #1a1c22; border: 1px solid #262932;
+    font-size: 9.5px; color: #c9ccd6; display: flex; align-items: flex-start; padding: 4px 5px;
+    position: relative; overflow: hidden; user-select: none; }
+  .key::after { content: ""; position: absolute; inset: 0; background: var(--c, transparent);
+    opacity: var(--a, 0); mix-blend-mode: screen; pointer-events: none; }
+  .key span { position: relative; z-index: 1; text-shadow: 0 1px 2px #000; }
+  .preview-note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+  /* effects */
+  .effects { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .effects button { text-align: left; padding: 10px 12px; }
+  .effects button[aria-pressed="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
+
+  .ctl { display: grid; grid-template-columns: 110px 1fr 34px; align-items: center; gap: 12px; }
+  .ctl + .ctl { margin-top: 14px; }
+  .ctl label { color: var(--muted); }
+  .ctl output { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .disabled { opacity: .35; pointer-events: none; }
+
+  .swatches { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .sw { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #0000; padding: 0; cursor: pointer;
+    box-shadow: inset 0 0 0 1px #ffffff22; }
+  .sw[aria-pressed="true"] { border-color: #fff; }
+  input[type=color] { width: 44px; height: 32px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel2); padding: 2px; cursor: pointer; }
+  .toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+  .seg button { padding: 6px 12px; border-radius: 8px; }
+  .seg button[aria-pressed="true"] { border-color: var(--accent); color: #fff; background: color-mix(in srgb, var(--accent) 18%, var(--panel2)); }
+
+  .sleepgrid { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 8px 12px; align-items: center; }
+  .sleepgrid label { color: var(--muted); }
+  select { font: inherit; color: var(--text); background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 6px 8px; width: 100%; }
+  .effinfo { margin-top: 16px; padding: 14px; border-radius: 12px; background: var(--panel2); border: 1px solid var(--line); }
+  .presets { display: grid; gap: 8px; }
+  .preset { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 10px; }
+  .preset .chip { width: 22px; height: 22px; border-radius: 6px; flex: none; }
+  .preset .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset button { padding: 4px 10px; font-size: 12px; }
+  .row-input { display: flex; gap: 8px; }
+  .row-input input { flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .muted { color: var(--muted); }
+  .banner { margin-bottom: 16px; padding: 12px 14px; border-radius: 12px; border: 1px solid; display: none; }
+  .banner.show { display: block; }
+  .banner.warn { background: #2a2210; border-color: #5a4515; color: #ffd27a; }
+  .banner.bad { background: #2a1015; border-color: #5a1a25; color: #ff9aa8; }
+  footer { margin-top: 18px; display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TK-63 Pro <small>Control</small></h1>
+  <span class="pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">Starting…</span></span>
+  <span class="pill" id="connPill" hidden></span>
+  <span class="pill" id="battPill" hidden></span>
+  <span class="spacer"></span>
+  <button class="ghost" id="quitBtn" title="Close the app">Quit</button>
+</header>
+
+<div class="banner" id="banner"></div>
+
+<div class="grid">
+  <div class="stack">
+    <section class="card">
+      <h2>Preview</h2>
+      <div class="kbwrap"><div class="kb" id="kb"></div></div>
+      <div class="preview-note">An approximation of the effect. The keyboard runs the real one itself.</div>
+    </section>
+    <section class="card" id="liveCard" hidden>
+      <h2>Live</h2>
+      <div id="liveScreen" style="display:flex;align-items:center;gap:14px">
+        <div id="liveSwatch" style="width:64px;height:40px;border-radius:10px;border:1px solid var(--line)"></div>
+        <span class="muted">Your keyboard follows the average colour of your screen.</span>
+      </div>
+      <div id="liveMusic">
+        <div id="liveBars" style="display:flex;align-items:flex-end;gap:2px;height:60px"></div>
+        <p class="muted" id="liveHint" style="margin:8px 0 0"></p>
+        <div class="ctl" style="margin-top:12px"><label for="smooth">Smoothness</label><input type="range" id="smooth" min="0" max="4" step="1"><output id="smoothOut"></output></div>
+        <p class="muted" style="margin:6px 0 0;font-size:12px">0 = raw and fast like the official app · 4 = smoothest. Higher values also send fewer updates.</p>
+      </div>
+      <p class="muted" id="liveStats" style="margin:8px 0 0;font-size:12px"></p>
+    </section>
+    <section class="card">
+      <h2>Effect</h2>
+      <div class="effects" id="effects"></div>
+      <h2 style="margin-top:16px">Live effects <span style="text-transform:none;letter-spacing:0;font-weight:400">· the app must stay open</span></h2>
+      <div class="effects" id="liveEffects"></div>
+      <div class="effinfo">
+        <div id="effName" style="font-weight:600"></div>
+        <div id="effDesc" class="muted" style="margin-top:2px"></div>
+        <div id="optCtl" style="margin-top:12px">
+          <div class="muted" id="optLabel" style="margin-bottom:6px">Direction</div>
+          <div class="seg" id="opts"></div>
+          <p class="muted" id="expNote" style="margin:8px 0 0;font-size:12px"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <h2>Colour</h2>
+      <label class="toggle" style="margin-bottom:14px"><input type="checkbox" id="rainbow"> Rainbow colours</label>
+      <div class="swatches" id="swatches"></div>
+      <p class="muted" id="colorNote" style="margin:10px 0 0; display:none">This effect has its own colours.</p>
+    </section>
+
+    <section class="card">
+      <h2>Settings</h2>
+      <div class="ctl" id="brightCtl"><label for="bright">Brightness</label><input type="range" id="bright" min="0" max="4" step="1"><output id="brightOut"></output></div>
+      <div class="ctl" id="speedCtl"><label for="speed">Speed</label><input type="range" id="speed" min="0" max="4" step="1"><output id="speedOut"></output></div>
+    </section>
+
+    <section class="card">
+      <h2>Keyboard</h2>
+      <div class="ctl"><label for="debounce">Key sensitivity</label><input type="range" id="debounce" min="1" max="10" step="1"><output id="debounceOut"></output></div>
+      <p class="muted" style="margin:6px 0 16px">1 = least sensitive · 10 = most sensitive. Lower it if keys ever double-type.</p>
+      <div class="sleepgrid">
+        <span></span><span class="muted">Lights off after</span><span class="muted">Sleep after</span>
+        <label for="lo24">2.4G</label><select id="lo24" data-k="light_off_24"></select><select id="sl24" data-k="sleep_24"></select>
+        <label for="lobt">Bluetooth</label><select id="lobt" data-k="light_off_bt"></select><select id="slbt" data-k="sleep_bt"></select>
+      </div>
+      <p class="muted" style="margin:10px 0 0">Timers only apply when wireless. Over the cable the keyboard stays on.</p>
+    </section>
+
+    <section class="card">
+      <h2>Polling rate</h2>
+      <div class="seg" id="rates"></div>
+      <p class="muted" style="margin:10px 0 0">How often the keyboard reports to the PC. 1000 Hz is the fastest.</p>
+    </section>
+
+    <section class="card">
+      <h2>Presets</h2>
+      <div class="row-input" style="margin-bottom:10px">
+        <input id="presetName" placeholder="Name this look…" maxlength="40">
+        <button id="savePreset">Save</button>
+      </div>
+      <div class="presets" id="presets"></div>
+    </section>
+  </div>
+</div>
+
+<section class="card" style="margin-top:18px">
+  <h2>Test notes</h2>
+  <div class="row-input">
+    <input id="noteText" placeholder="What does the keyboard actually do? e.g. &quot;speed 4 looks slower than speed 0&quot;" maxlength="300">
+    <button id="noteBtn">Log note</button>
+  </div>
+  <p class="muted" id="noteMsg" style="margin:8px 0 0">Notes are saved to watchdog.log next to every command the app sends, so they can be matched up later.</p>
+  <label class="toggle" style="margin-top:10px"><input type="checkbox" id="verifyToggle"> Test mode: read each change back from the keyboard (extra traffic, may cause an extra blink)</label>
+</section>
+
+<footer>
+  <span id="footMsg">Changes are saved on the keyboard and stay after you close this app.</span>
+  <span class="spacer"></span>
+  <button class="ghost" id="refreshBtn">Re-read from keyboard</button>
+</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const SWATCHES = ["#FF0000","#FF6A00","#FFD000","#00FF40","#00C8FF","#0040FF","#8A2BE2","#FF00C8","#FFFFFF"];
+const RATES = [125, 250, 500, 1000];
+const LAYOUT = [
+  [["Esc",1],["1",1],["2",1],["3",1],["4",1],["5",1],["6",1],["7",1],["8",1],["9",1],["0",1],["-",1],["=",1],["Backspace",2]],
+  [["Tab",1.5],["Q",1],["W",1],["E",1],["R",1],["T",1],["Y",1],["U",1],["I",1],["O",1],["P",1],["[",1],["]",1],["\\",1.5]],
+  [["Caps",1.75],["A",1],["S",1],["D",1],["F",1],["G",1],["H",1],["J",1],["K",1],["L",1],[";",1],["'",1],["Enter",2.25]],
+  [["Shift",2.25],["Z",1],["X",1],["C",1],["V",1],["B",1],["N",1],["M",1],[",",1],[".",1],["Shift",1.75],["↑",1],["/",1]],
+  [["Ctrl",1.25],["Win",1.25],["Alt",1.25],["",6.25],["Alt",1],["Fn",1],["←",1],["↓",1],["→",1]],
+];
+
+let effects = [];
+let ui = { mode: 8, brightness: 1, speed: 2, color: "#00FF00", rainbow: true, option: 0 };
+let server = null;
+let lastEdit = 0, sendTimer = null, adopted = false, rate = null, presets = [];
+
+// ---------- keyboard preview ----------
+const keys = [];
+(function buildKb() {
+  const kb = $("#kb");
+  LAYOUT.forEach((row, r) => {
+    const el = document.createElement("div");
+    el.className = "row";
+    el.style.gridTemplateColumns = row.map(k => `${k[1]}fr`).join(" ");
+    let x = 0;
+    row.forEach(([label, w]) => {
+      const k = document.createElement("div");
+      k.className = "key";
+      k.innerHTML = `<span>${label.replace(/</g, "&lt;")}</span>`;
+      el.appendChild(k);
+      keys.push({ el: k, r, x: x + w / 2, w, hit: 0 });
+      x += w;
+    });
+    kb.appendChild(el);
+  });
+})();
+
+function hexToHsl(hex) {
+  const n = parseInt(hex.slice(1), 16), r = (n >> 16) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2; let h = 0, s = 0;
+  if (max !== min) { const d = max - min; s = l > .5 ? d / (2 - max - min) : d / (max + min);
+    h = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4; h *= 60; }
+  return [h, s * 100, l * 100];
+}
+
+// Path for "The steady stream": Esc -> Backspace, down to \, back to Tab, ... (serpentine), or every row left-to-right.
+const ROWS = LAYOUT.map((_, r) => keys.filter(k => k.r === r));
+// Spiral ("Return"): outer ring clockwise from Esc, then Tab -> ] -> down to Up arrow -> left to Z -> up to A -> along to ',
+// then the whole path in reverse (as observed on a real TK-63 Pro).
+function spiralPath() {
+  const R = ROWS, last = r => R[r].length - 1, p = [];
+  p.push(...R[0]);                                        // Esc ... Backspace
+  p.push(R[1][last(1)], R[2][last(2)], R[3][last(3)]);    // \  Enter  /
+  p.push(...[...R[4]].reverse());                         // →  ...  Ctrl
+  p.push(R[3][0], R[2][0], R[1][0]);                      // Shift  Caps  Tab
+  p.push(...R[1].slice(1, last(1)));                      // Q ... ]
+  p.push(R[2][last(2) - 1]);                              // '
+  p.push(...R[3].slice(1, last(3)).reverse());            // ↑  Shift  .  ,  M ... Z
+  p.push(...R[2].slice(1, last(2)));                      // A ... ; '
+  return p.concat([...p].reverse());
+}
+const SNAKE = [ROWS.flatMap((row, r) => r % 2 ? [...row].reverse() : row), spiralPath()];
+const hash = n => { const v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); };
+const presses = [];  // simulated key presses for the reactive effects: {k, t0}
+let lastSpawn = 0;
+const PRESS_MODES = new Set([5, 8, 14, 19]);
+
+// Returns [alpha, hueOverride|null] for one key, or null to fall back to the generic pattern.
+function effectAt(k, mode, s, sp, opt) {
+  const near = (dx, dy, rad) => Math.exp(-(dx * dx + dy * dy) / (rad * rad));
+  switch (mode) {
+    case 2: { // Dynamic breathing: whole board one colour; rainbow changes colour each breath
+      const ph = s * sp * 0.5, n = Math.floor(ph), f = ph - n;
+      return [0.5 - 0.5 * Math.cos(2 * Math.PI * f), (n * 67) % 360];
+    }
+    case 3: { // Spectrum cycle: whole board one colour, morphing to the next with a slight dip
+      const cy = s * sp * 0.35, n = Math.floor(cy), f = cy - n;
+      const order = i => opt === 1 ? Math.floor(hash(i) * 7) : i % 7;
+      const h0 = order(n) * 51.4, h1 = order(n + 1) * 51.4;
+      if (f < 0.6) return [1, h0];
+      const g = (f - 0.6) / 0.4;
+      return [1 - 0.3 * Math.sin(Math.PI * g), h0 + (((h1 - h0 + 540) % 360) - 180) * g];
+    }
+    case 4: { // Drift: bands flowing in the chosen direction
+      const dir = opt % 2 ? -1 : 1, v = opt >= 2 ? k.r * 3 : k.x;
+      return [0.25 + 0.75 * (0.5 + 0.5 * Math.sin(dir * v * 0.6 - s * sp * 3)), (v * 24 * dir - s * 80 * sp) % 360];
+    }
+    case 7: { // The steady stream: snake along the path with a fading tail
+      const path = SNAKE[opt === 1 ? 1 : 0], n = path.length, head = (s * sp * 9) % n;
+      let a = 0, hi = 0;
+      path.forEach((pk, i) => { if (pk === k) { const d = (head - i + n) % n; const v = d < 7 ? 1 - d / 7 : 0; if (v > a) { a = v; hi = i; } } });
+      return [a, (hi * 6) % 360];
+    }
+    case 9: { // Peaks rising: lights from Esc and Left arrow meet mid, fuse, then sweep to both edges
+      const p = (s * sp * 0.3) % 1;
+      if (p < 0.45) {
+        const q = p / 0.45, ax = 0.5 + 7 * q, bx = 12.75 - 5.25 * q;
+        return [Math.max(near(k.x - ax, (k.r - 0) * 1.2, 1.1), near(k.x - bx, (k.r - 4) * 1.2, 1.1)), null];
+      }
+      if (p < 0.6) { const q = (p - 0.45) / 0.15; return [near(k.x - 7.5, 0, 0.6 + 2.2 * Math.sin(Math.PI * q)) * (0.6 + 0.4 * Math.sin(Math.PI * q)), null]; }
+      const off = (p - 0.6) / 0.4 * 8.5;
+      return [Math.max(near(k.x - (7.5 - off), 0, 0.8), near(k.x - (7.5 + off), 0, 0.8)), null];
+    }
+    case 10: { // Sine wave: a rolling sine curve across the keyboard
+      const y = 2 + 2.2 * Math.sin(k.x * 0.55 - s * sp * 3);
+      return [near(0, k.r - y, 0.9), (k.x * 24 - s * 40 * sp) % 360];
+    }
+    case 11: { // Caispring Surging: patterns surging out of (or into) the centre
+      const d = Math.hypot((k.x - 7.5) / 1.6, k.r - 2), dir = opt === 1 ? 1 : -1;
+      return [0.25 + 0.75 * (0.5 + 0.5 * Math.sin(d * 1.3 + dir * s * sp * 4)), (d * 50 + dir * s * 60 * sp) % 360];
+    }
+    case 12: { // Flowers Blooming: every key fully lit, each in its own colour, each drifting through colours
+      const i = keys.indexOf(k), dir = opt === 1 ? -1 : 1;
+      return [0.85 + 0.15 * Math.sin(s * sp * 1.5 + hash(i + 7) * 6.28), (hash(i) * 360 + dir * s * sp * (25 + 35 * hash(i + 3))) % 360];
+    }
+    case 15: { // Peak Turn: a circular wave turning around the centre
+      const th = Math.atan2(k.r - 2, (k.x - 7.5) / 2.5), dir = opt === 1 ? -1 : 1;
+      return [0.15 + 0.85 * Math.pow(0.5 + 0.5 * Math.cos(th + dir * s * sp * 2.5), 2), (th * 57.3 + dir * s * 90 * sp) % 360];
+    }
+    case 17: { // Snow: drops falling straight down each column (or up)
+      const c = Math.floor(k.x * 1.3), y = (s * sp * 0.9 + hash(c)) % 1 * 8 - 1.5, r = opt === 1 ? 4 - k.r : k.r, d = y - r;
+      return [d >= 0 && d < 2 ? 1 - d / 2 : 0, (c * 40) % 360];
+    }
+    case 18: { // Meteor: streaks across each row, left->right (or right->left)
+      const x = (s * sp * 0.45 + hash(k.r + 3)) % 1 * 22 - 3, kx = opt === 1 ? 15 - k.x : k.x, d = x - kx;
+      return [d >= 0 && d < 4 ? Math.pow(1 - d / 4, 1.5) : 0, (k.r * 70) % 360];
+    }
+    case 5: case 8: case 14: case 19: { // reactive effects driven by simulated presses
+      let a = 0;
+      for (const p of presses) {
+        const age = s - p.t0, dx = k.x - p.k.x, dy = (k.r - p.k.r) * 1.1;
+        if (mode === 5) { const R = age * 7 * sp, d = Math.hypot(dx, dy); a = Math.max(a, near(d - R, 0, 0.9) * Math.max(0, 1 - R / 17)); }
+        else if (mode === 14) { if (k.r === p.k.r) { const R = age * 9 * sp; a = Math.max(a, near(Math.abs(dx) - R, 0, 0.8) * Math.max(0, 1 - R / 16), k === p.k ? Math.max(0, 1 - age * 2) : 0); } }
+        else if (k === p.k) a = Math.max(a, Math.max(0, 1 - age * sp * 0.8));
+      }
+      const off = (mode === 8 && opt === 1) || mode === 19;
+      return [off ? 1 - a : a, null];
+    }
+  }
+  return null;
+}
+
+function animate(t) {
+  const s = t / 1000, sp = 0.4 + ui.speed * 0.45, bright = ui.brightness / 4, mode = ui.mode;
+  const base = hexToHsl(ui.color);
+  const eff = effects.find(e => e.mode === mode);
+  const own = eff && !eff.color;
+  if (PRESS_MODES.has(mode) && s - lastSpawn > 0.9 / sp) {
+    presses.push({ k: keys[Math.floor(Math.random() * keys.length)], t0: s }); lastSpawn = s;
+  }
+  while (presses.length && s - presses[0].t0 > 4) presses.shift();
+  for (const k of keys) {
+    let a = 1, hue = base[0], sat = base[1], lit = Math.max(45, Math.min(60, base[2]));
+    const rainbowHue = (k.x * 22 + k.r * 10 - (mode === 1 ? 0 : s * 60 * sp)) % 360;
+    if (ui.rainbow || own) { hue = rainbowHue; sat = 100; lit = 55; }
+    const live = server && server.live;
+    const fx = effectAt(k, mode, s, sp, ui.option);
+    if (fx) {
+      a = fx[0];
+      if ((ui.rainbow || own) && fx[1] !== null) hue = fx[1];
+      if (mode === 3) { hue = fx[1]; sat = 100; lit = 55; }
+      if (mode === 12 && ui.rainbow) { sat = 85; lit = 68; }  // softer pastel tones, as on the real keyboard
+    } else switch (mode) {
+      case 21: { const h = hexToHsl(live ? live.color : "#000000"); hue = h[0]; sat = h[1]; lit = Math.max(20, Math.min(70, h[2])); a = h[2] < 3 ? 0 : 1; break; }
+      case 20: case 22: {
+        const lv = live && live.levels ? live.levels.slice(mode === 20 ? 0 : 14) : [];
+        const col = Math.min(lv.length - 1, Math.floor(k.x / 15 * Math.max(1, lv.length)));
+        const height = (lv[col] || 0) / 6 * 5;  // 0..5 rows lit from the bottom
+        a = (4 - k.r) < height ? 1 : 0.04; break; }
+      case 0: a = 0; break;
+      case 1: a = 1; break;
+      case 2: a = 0.15 + 0.85 * (0.5 + 0.5 * Math.sin(s * sp * 2.2)); break;
+      case 4: case 12: { const dir = ui.option % 2 ? -1 : 1; const v = ui.option >= 2 ? k.r * 3 : k.x;
+        a = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(dir * v * 0.6 - s * sp * 3)); if (ui.rainbow) hue = (v * 24 * dir - s * 80 * sp) % 360; break; }
+      case 8: case 5: case 19: {
+        if (Math.random() < 0.004 * sp) k.hit = 1;
+        k.hit = Math.max(0, k.hit - 0.02 * sp);
+        a = mode === 19 ? 1 - k.hit : k.hit; break; }
+      case 6: case 17: case 16: {
+        if (Math.random() < 0.006 * sp) k.hit = 1;
+        k.hit = Math.max(0, k.hit - 0.015 * sp); a = mode === 16 ? 0.3 + 0.7 * k.hit : k.hit; break; }
+      default: a = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(k.x * 0.5 + k.r - s * sp * 2.5));
+    }
+    if (mode !== 21) a *= bright;
+    k.el.style.setProperty("--c", `hsl(${(hue + 360) % 360} ${sat}% ${lit}%)`);
+    k.el.style.setProperty("--a", a.toFixed(3));
+    k.el.style.boxShadow = a > 0.05 ? `0 0 ${10 * a}px hsl(${(hue + 360) % 360} ${sat}% ${lit}% / ${0.55 * a})` : "none";
+  }
+  requestAnimationFrame(animate);
+}
+
+// ---------- rendering ----------
+function renderEffects() {
+  const groups = [[$("#effects"), effects.filter(e => !e.live)], [$("#liveEffects"), effects.filter(e => e.live)]];
+  for (const [box, list] of groups) {
+    if (box.childElementCount !== list.length) {
+      box.innerHTML = "";
+      for (const e of list) {
+        const b = document.createElement("button");
+        b.textContent = e.name; b.dataset.mode = e.mode;
+        b.onclick = () => {
+          if (e.mode === ui.mode) return;  // already selected - don't resend
+          const opt = (e.options[0] || {}).value || 0; edit({ mode: e.mode, option: opt });
+        };
+        box.appendChild(b);
+      }
+    }
+    for (const b of box.children) b.setAttribute("aria-pressed", String(+b.dataset.mode === ui.mode));
+  }
+}
+
+function renderLive() {
+  const eff = effects.find(e => e.mode === ui.mode);
+  const live = server && server.live;
+  const show = !!(eff && eff.live);
+  $("#liveCard").hidden = !show;
+  if (!show || !live) return;
+  const isScreen = ui.mode === 21;
+  $("#liveScreen").style.display = isScreen ? "flex" : "none";
+  $("#liveMusic").style.display = isScreen ? "none" : "block";
+  $("#liveSwatch").style.background = live.color;
+  if (!isScreen) {
+    const bars = $("#liveBars");
+    const lv = (live.levels || []).slice(ui.mode === 20 ? 0 : 14, (ui.mode === 20 ? 0 : 14) + 32);
+    while (bars.childElementCount < 32) { const d = document.createElement("div"); d.style.cssText = "flex:1;background:var(--accent);border-radius:2px;min-height:2px"; bars.appendChild(d); }
+    [...bars.children].forEach((d, i) => d.style.height = `${Math.min(100, ((lv[i] || 0) / 6) * 100)}%`);
+    $("#liveHint").textContent = live.error ? live.error : (live.audio ? "Following what's playing on your PC." : "Nothing is playing. Start some music or a video.");
+  }
+  if (Date.now() - smoothEdit > 3000 && live.smooth != null) { $("#smooth").value = live.smooth; $("#smoothOut").textContent = live.smooth; }
+  const waiting = server.pending || server.status === "applying";
+  $("#liveStats").textContent = live.kind ? `Streaming to keyboard${waiting ? " (paused while a change is saved)" : ""}.` : "Starting…";
+}
+
+function renderControls() {
+  const eff = effects.find(e => e.mode === ui.mode) || { color: true, speed: true, brightness: true, options: [] };
+  const off = ui.mode === 0;
+  $("#bright").value = ui.brightness; $("#brightOut").textContent = ui.brightness;
+  $("#speed").value = ui.speed; $("#speedOut").textContent = ui.speed;
+  $("#rainbow").checked = ui.rainbow;
+  $("#brightCtl").classList.toggle("disabled", off || eff.brightness === false);
+  $("#optLabel").textContent = eff.live ? "Style" : (ui.mode === 3 || ui.mode === 5 || ui.mode === 8 ? "Variant" : "Direction");
+  $("#effName").textContent = eff.name || "";
+  $("#effDesc").textContent = eff.desc || "";
+  $("#expNote").textContent = eff.experimental ? "Experimental: the official app doesn't offer this option. If the keyboard doesn't change, it's ignoring it." : "";
+  $("#speedCtl").classList.toggle("disabled", off || !eff.speed);
+  $("#swatches").classList.toggle("disabled", off || !eff.color);
+  $("#swatches").style.opacity = ui.rainbow ? 0.55 : "";
+  $("#rainbow").parentElement.classList.toggle("disabled", off || !eff.color);
+  $("#colorNote").style.display = (!off && !eff.color) ? "block" : "none";
+  const opts = $("#opts"); opts.innerHTML = "";
+  $("#optCtl").style.display = eff.options.length ? "block" : "none";
+  for (const o of eff.options) {
+    const b = document.createElement("button");
+    b.textContent = o.label; b.setAttribute("aria-pressed", String(o.value === ui.option));
+    b.onclick = () => edit({ option: o.value });
+    opts.appendChild(b);
+  }
+  // swatches
+  const sw = $("#swatches");
+  if (!sw.childElementCount) {
+    for (const c of SWATCHES) {
+      const b = document.createElement("button");
+      b.className = "sw"; b.style.background = c; b.title = c; b.dataset.c = c;
+      b.onclick = () => edit({ color: c, rainbow: false });
+      sw.appendChild(b);
+    }
+    const pick = document.createElement("input");
+    pick.type = "color"; pick.id = "picker"; pick.title = "Custom colour";
+    pick.oninput = () => edit({ color: pick.value.toUpperCase(), rainbow: false });
+    sw.appendChild(pick);
+  }
+  for (const b of sw.querySelectorAll(".sw")) b.setAttribute("aria-pressed", String(!ui.rainbow && b.dataset.c === ui.color.toUpperCase()));
+  $("#picker").value = ui.color.toLowerCase();
+  document.documentElement.style.setProperty("--accent", ui.rainbow || ui.mode === 0 ? "#00c8ff" : ui.color);
+  renderEffects();
+  renderLive();
+}
+
+function renderRates() {
+  const box = $("#rates"); box.innerHTML = "";
+  for (const r of RATES) {
+    const b = document.createElement("button");
+    b.textContent = `${r} Hz`; b.setAttribute("aria-pressed", String(r === rate));
+    b.onclick = () => { rate = r; renderRates(); post("/api/report-rate", { hz: r }); };
+    box.appendChild(b);
+  }
+}
+
+function renderStatus() {
+  if (!server) return;
+  const st = server.status, dot = $("#statusDot");
+  dot.className = "dot " + ({ ready: "ok", applying: "warn", asleep: "warn", searching: "", jammed: "bad", error: "bad" }[st] || "");
+  let text = server.message;
+  if (server.pending && st !== "jammed") text = st === "asleep" ? server.message : "Waiting to apply…";
+  $("#statusText").textContent = text;
+  const conn = $("#connPill");
+  conn.hidden = !server.connection;
+  conn.textContent = [server.connection, server.model, server.firmware != null ? `fw ${server.firmware}` : null].filter(Boolean).join(" · ");
+  const batt = $("#battPill");
+  batt.hidden = server.battery == null;
+  if (server.battery != null) batt.textContent = `Battery ${server.battery}%`;
+  const banner = $("#banner");
+  banner.className = "banner";
+  if (st === "jammed") { banner.className = "banner show bad";
+    banner.textContent = "The keyboard has stopped answering settings commands. It still types normally. Wait a minute, or unplug and replug it. Your change will be sent automatically when it's back."; }
+  else if (server.model && server.model !== "TK-63 Pro") { banner.className = "banner show warn";
+    banner.textContent = `Connected keyboard reports as "${server.model}", not a TK-63 Pro. Settings may not behave as expected.`; }
+  else if (server.connection && !server.lighting_known && st === "ready") { banner.className = "banner show warn";
+    banner.textContent = "Couldn't read the current lighting yet. Choosing an effect will still set it."; }
+}
+
+// ---------- actions ----------
+async function post(path, body) {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error((await r.json()).error || r.status);
+  } catch (e) { $("#footMsg").textContent = "Couldn't reach the app: " + e.message; }
+}
+
+function edit(patch) {
+  Object.assign(ui, patch);
+  lastEdit = Date.now();
+  renderControls();
+  clearTimeout(sendTimer);
+  sendTimer = setTimeout(() => post("/api/lighting", ui), 250);
+}
+
+// keyboard settings (sensitivity + sleep timers)
+let kbset = { debounce: null, sleep: null }, kbEdit = 0, debTimer = null;
+(function buildSleep() {
+  for (const sel of document.querySelectorAll(".sleepgrid select")) {
+    const lo = sel.dataset.k.startsWith("light") ? 1 : 10;
+    for (let m = lo; m <= 60; m++) sel.add(new Option(`${m} minute${m > 1 ? "s" : ""}`, m));
+    sel.onchange = () => {
+      if (!kbset.sleep) return;
+      kbset.sleep[sel.dataset.k] = +sel.value; kbEdit = Date.now();
+      post("/api/sleep", kbset.sleep);
+    };
+  }
+})();
+function renderKbSettings() {
+  const d = $("#debounce");
+  d.parentElement.classList.toggle("disabled", kbset.debounce == null);
+  if (kbset.debounce != null) { d.value = kbset.debounce; $("#debounceOut").textContent = kbset.debounce; }
+  for (const sel of document.querySelectorAll(".sleepgrid select")) {
+    sel.disabled = !kbset.sleep;
+    if (kbset.sleep) sel.value = kbset.sleep[sel.dataset.k];
+  }
+}
+$("#debounce").oninput = e => {
+  kbset.debounce = +e.target.value; kbEdit = Date.now(); renderKbSettings();
+  clearTimeout(debTimer); debTimer = setTimeout(() => post("/api/debounce", { value: kbset.debounce }), 300);
+};
+
+$("#bright").oninput = e => edit({ brightness: +e.target.value });
+$("#speed").oninput = e => edit({ speed: +e.target.value });
+$("#rainbow").onchange = e => edit({ rainbow: e.target.checked });
+async function logNote() {
+  const t = $("#noteText").value.trim();
+  if (!t) return;
+  const eff = effects.find(e => e.mode === ui.mode);
+  await post("/api/note", { text: `[on screen: ${eff ? eff.name : ui.mode}, speed ${ui.speed}, brightness ${ui.brightness}] ${t}` });
+  $("#noteText").value = "";
+  $("#noteMsg").textContent = `Logged at ${new Date().toLocaleTimeString()}.`;
+}
+$("#noteBtn").onclick = logNote;
+let smoothEdit = 0;
+$("#smooth").oninput = e => { smoothEdit = Date.now(); $("#smoothOut").textContent = e.target.value; post("/api/smooth", { value: +e.target.value }); };
+$("#verifyToggle").onchange = e => post("/api/verify", { on: e.target.checked });
+$("#noteText").addEventListener("keydown", e => { if (e.key === "Enter") logNote(); });
+$("#refreshBtn").onclick = () => { adopted = false; post("/api/refresh", {}); };
+$("#quitBtn").onclick = async () => { await post("/api/quit", {}); document.body.innerHTML = "<p style='padding:40px'>TK-63 Pro Control has closed. You can close this window.</p>"; };
+
+// presets
+function renderPresets() {
+  const box = $("#presets"); box.innerHTML = "";
+  if (!presets.length) { box.innerHTML = "<span class='muted'>No presets yet. Set up a look you like and save it.</span>"; return; }
+  presets.forEach((p, i) => {
+    const row = document.createElement("div"); row.className = "preset";
+    const eff = effects.find(e => e.mode === p.mode);
+    row.innerHTML = `<span class="chip"></span><span class="name"></span><button>Apply</button><button class="ghost" title="Delete">✕</button>`;
+    row.querySelector(".chip").style.background = p.rainbow ? "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" : p.color;
+    row.querySelector(".name").textContent = `${p.name} — ${eff ? eff.name : "?"}`;
+    const [apply, del] = row.querySelectorAll("button");
+    apply.onclick = () => { const { name, ...s } = p; edit(s); };
+    del.onclick = () => { presets.splice(i, 1); post("/api/presets", presets); renderPresets(); };
+    box.appendChild(row);
+  });
+}
+$("#savePreset").onclick = () => {
+  const name = $("#presetName").value.trim() || `Preset ${presets.length + 1}`;
+  presets.push({ name, ...ui }); $("#presetName").value = "";
+  post("/api/presets", presets); renderPresets();
+};
+
+// ---------- polling ----------
+async function poll() {
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    server = await r.json();
+    if (!effects.length) { effects = server.effects; renderEffects(); }
+    if (server.lighting && server.lighting_known && !adopted && Date.now() - lastEdit > 4000) {
+      ui = Object.assign(ui, server.lighting); adopted = true; renderControls();
+    }
+    if (server.report_rate && rate === null) { rate = server.report_rate; renderRates(); }
+    if (Date.now() - kbEdit > 4000 && (server.debounce != null || server.sleep)) {
+      kbset = { debounce: server.debounce, sleep: server.sleep ? { ...server.sleep } : null }; renderKbSettings();
+    }
+    renderStatus();
+    renderLive();
+    $("#verifyToggle").checked = !!server.verify_enabled;
+  } catch { $("#statusText").textContent = "App not running"; $("#statusDot").className = "dot bad"; }
+}
+
+(async function init() {
+  renderRates();
+  try { presets = await (await fetch("/api/presets")).json(); } catch {}
+  await poll();
+  renderControls(); renderPresets(); renderKbSettings();
+  setInterval(poll, 1000);
+  requestAnimationFrame(animate);
+})();
+</script>
+</body>
+</html>

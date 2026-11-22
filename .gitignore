@@ -1,0 +1,20 @@
+# Personal data written by the app
+presets.json
+watchdog.log
+*.tmp
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# PyInstaller build output (attach the .exe to a GitHub Release instead)
+build/
+dist/
+*.spec
+
+# Never commit the official Tezarre software or anything extracted from it
+*.zip
+Tezarre_setup*.exe
+Keyboard-Recovery-Software.exe
