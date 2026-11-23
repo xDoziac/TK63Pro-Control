@@ -52,10 +52,6 @@ Or double-click `Start TK63 Pro Control.bat`.
 
 Settings are stored **on the keyboard**, so they stay after you close the app or move to another PC.
 
-### Deliberately not included
-Firmware updates, factory reset, key remapping and macros. These are the features that can leave a keyboard
-unusable if anything goes wrong, so this app doesn't touch them.
-
 ## Good to know
 
 - **Changes take a second or two.** After each change, the keyboard saves to its memory and ignores USB for a moment.
